@@ -1,0 +1,562 @@
+---
+title: "Batch 6 - Data Mining 1 - Unsupervised Learning - Assignment 1"
+author: 'Subba Reddy Yeruva, : 71610085'
+date: "06 July 2016"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1. Marketing to Frequent Fliers
+
+The file EastWestAirlinesCluster.xls (available on the textbook website http://dataminingbook.com/) contains information on 4000 passengers who belong to an airline's frequent flier program. For each passenger the data include information on their mileage history and on different ways they accrued or spent miles in the last year. The goal is to try to identify clusters of passengers that have similar characteristics for the purpose of targeting different segments for different types of mileage offers.
+      
+1.1 Apply hierarchical clustering with Euclidean distance and Ward's method. Make sure to standardize the data first.     How many clusters appear?
+
+1.2 What would happen if the data were not standardized?
+
+1.3 Compare the cluster centroids to characterize the different clusters and try to give each cluster a label.
+
+1.4 To check the stability of the clusters, remove a random 5% of the data (by taking a random sample of 95% of the records), and repeat the analysis. Does the same picture emerge?
+
+1.5 Use k-means clustering with the number of clusters that you found above in Part (a). Does the same picture emerge? If not, how does it contrast or validate the finding in Part c above?
+
+1.6 Which cluster(s) would you target for offers, and what type of offers would you target to customers in that cluster? Include proper reasoning in support of your choice of cluster(s) and the corresponding offer(s).
+
+## 1.1 Number of Clusters
+
+As per the nature of the columns in EastWestAirlinesCluster.xls, The data is mixed data. Hence the categorical variables are converted into binary and then clustering is applied. 
+
+As per the generated dendogram below, if slicing is done at height 100 then there are 3 clusters formed. 
+
+As per the dendogram branching is done into 2 parts and left branch alone formed one cluster and 2nd branch(Right Branch) again splitted into two more branches. The two branches of right branch are formed into an cluster. Hence in total 3 clusters with maximum number of customers.
+
+## R code illustrating the procees to create Hierarchical Clustering
+
+```{r cars, message=FALSE, warning=FALSE}
+
+## Libraries
+library("dummies")
+library("dendextend")
+library("dendextendRcpp")
+library("gridExtra")
+library("cluster")
+library("factoextra")
+library("MASS")
+library("fpc")
+
+## Set the working directory to where the Excel file is
+setwd('J:\\ISB Business Analytics\\Data Mining\\Data Mining Assignment 1')
+
+## Input file read
+input     <- read.csv("EastWestAirlinesClusterCSV.csv",header=TRUE)
+
+## 1. Loading and preparing data
+mydatawd  <- input[,2:11]
+
+#Creating Dummy variables for categorical data
+mydata    <- dummy.data.frame(mydatawd, names = "cc1_miles", omit.constants=FALSE )
+mydata    <- dummy.data.frame(mydatawd, names = "cc2_miles", omit.constants=FALSE )
+mydata    <- dummy.data.frame(mydatawd, names = "cc3_miles", omit.constants=FALSE )
+
+# Standardize Data
+my_data   <- scale(mydata)
+
+# 2. Compute dissimilarity matrix
+d         <- dist(my_data, method = "euclidean")
+
+# Hierarchical clustering using Ward's method
+res.hc    <- hclust(d, method = "ward.D2" )
+
+```
+## Cluster Dendogram in Ward's Method
+
+
+```{r pressure, echo=FALSE}
+# Visualize
+plot(res.hc, hang=-1, cex = 0.6) # plot tree
+
+```
+
+## Different clusters with differentation of color
+
+
+```{r color, echo=FALSE, message=FALSE, warning=FALSE}
+
+# Customized color for groups
+fviz_dend(res.hc, k = 3, 
+          k_colors = c("#1B9E77", "#D95F02", "#7570B3"))
+```
+
+
+## 1.2 Standardization of Data
+
+Stanardization/Normalization of data is not done then below issues will influence the model.
+
+  -> Distance measure will be wrongly clacualted, if all the variables are not with equal weight.
+ 
+  -> Laregest scale dominating the measure 
+
+The below dendogarm generated with the given data set without standardization is as below. 
+As per the insights large value units are influencing the small values. 
+
+```{r bmw, echo=FALSE,message=FALSE, warning=FALSE}
+
+# 1. Without transformation
+
+my_datawt <- mydata
+d <- dist(my_datawt, method = "euclidean")
+reswt.hc <- hclust(d, method = "ward.D2" )
+plot(reswt.hc, hang=-1, cex = 0.6) # plot tree
+
+```
+
+## 1.3 Cluster Centroids 
+
+The below are the metrics of cluster centriods. 
+
+### Cluster 2 - Label - High Networth frequent fliers
+    Cluster 2 metrics are leading in progressive way except non-flight bonus transactions.
+    These are the segment of customers, who are associated with EastWest Airlines since long time.
+### Cluster 3 - Label - Non Frequent travellers
+    Cluster 3 metrics depicts that the flight miles and flight transactions in last 12 months is zero and their
+    non-flight bonus transactions are leading than the other clusters.
+    
+### Cluster 1 - Label - Middle class travellers 
+    Cluser 1 metrics depicts that the level of spending is average to cluster 2 and 3.
+
+### Centriod Metrics - Column versus Clusters    
+
+```{r bmw2, echo=FALSE,message=FALSE, warning=FALSE}
+
+options(scipen=999)
+
+clusters = cutree(hclust(dist(my_data)), k=3) # get 3clusters
+
+# function to find medoid in cluster i
+clust.centroid = function(i, dat, clusters) {
+  ind = (clusters == i)
+  colMeans(dat[ind,])
+}
+
+sapply(unique(clusters), clust.centroid, mydatawd, clusters)
+
+```
+
+
+## 1.4 Stability of Clusters Validation
+The Process to check for the stability of clusters check. Create different Dendogarms with the sample of 95% data. 
+Here Dend1 and Dend2 are with sample of 95% data.
+
+```{r cars3, message=FALSE, warning=FALSE}
+
+# Hierarchical clustering using Ward's method
+
+Dend1   <- as.dendrogram(res.hc)
+
+#Random Sample1 with 95% of data
+input2=input[sample(nrow(my_data),replace=F,size=0.95*nrow(input)),]
+
+d       <- dist(input2, method = "euclidean")
+res2.hc <- hclust(d, method = "ward.D2" )
+Dend2   <- as.dendrogram(res2.hc)
+
+#Random Sample2 with 95% of data
+input3=input[sample(nrow(my_data),replace=F,size=0.95*nrow(input)),]
+
+d       <- dist(input3, method = "euclidean")
+res3.hc <- hclust(d, method = "ward.D2" )
+Dend3   <- as.dendrogram(res3.hc)
+
+```
+
+###Global Comparison of Dendograms:
+
+```{r cars2}
+# Global Comparison of Dendograms
+# Total Population Metrics
+Dend1
+# Random Sample 1 Metrics
+Dend2
+# Random Sample 2 Metrics
+Dend3
+# Comparison of Population, Random sample 1 and Random sample 2 dendogarms.
+all.equal(Dend3, Dend2, Dend1, use.edge.length = TRUE)
+```
+
+####Sample 1 Dendogarm:
+
+```{r asdf, echo=FALSE,message=FALSE, warning=FALSE}
+# Customized color for groups
+fviz_dend(res2.hc, k = 3, 
+                   k_colors = c("#1B9E77", "#D95F02", "#7570B3"))
+```
+
+####Sample 2 Dendogarm:
+
+```{r asdf2, echo=FALSE,message=FALSE, warning=FALSE}
+# Customized color for groups
+fviz_dend(res3.hc, k = 3, 
+                   k_colors = c("#1B9E77", "#D95F02", "#7570B3"))
+```
+
+### Conclusion
+From above stastics of dendogram, dendogram comparison and dendogram visualizations,  the dendogarams are not same(The Pictures are not same).For every instance of sample, new insights are emerged.
+
+## 1.5 K-Means Clustering
+
+The below R code depicts the process to get the aggregate metrics for Hierarchial clustering and K-Means.
+
+```{r benz3}
+
+## K-means clustering
+set.seed(123)
+fit         <- kmeans(my_data, 3) # 3 cluster solution
+
+#Aggregation of k-means
+
+mydatak     <- data.frame(mydata, fit$cluster) # append cluster membership
+temp        <- aggregate(mydatak, by=list(fit$cluster), FUN=mean)
+
+#to find the size of clusters 
+ClusterCo   <- aggregate(mydatak, by=list(fit$cluster), FUN=sum) 
+#to find the cluster size
+d           <- transform(ClusterCo, clusterSize = fit.cluster / Group.1)
+d           <- transform(d, fit.cluster= fit.cluster/ clusterSize)
+temp$clusterSize   <- d$clusterSize
+temp$clusterPCT    <- (d$clusterSize*100)/3999
+# transpose to change from horizontal to vertical
+temp2       <- t(temp)
+
+round_df <- function(x, digits) {
+  # round all numeric variables
+  # x: data frame 
+  # digits: number of digits to round
+  numeric_columns    <- sapply(x, class) == 'numeric'
+  x[numeric_columns] <-  round(x[numeric_columns], digits)
+  x
+}
+
+temp4       <- round_df(temp2, 2)
+
+#Hierarchical Aggregate calculations
+
+# Hierarchical clustering using Ward's method
+
+#set.seed(123)
+groups      <- cutree(res.hc, k=3) # cut tree into 3 clusters
+membership  <-as.matrix(groups)
+membership  <- data.frame(membership)
+names(membership) <- c("cluster")
+mydatao     <- data.frame(mydata, membership$cluster) # append cluster membership
+
+temp        <- aggregate(mydatao, by=list(membership$cluster), FUN=mean)
+
+temp2       <- t(temp)
+
+round_df <- function(x, digits) {
+  # round all numeric variables
+  # x: data frame 
+  # digits: number of digits to round
+  numeric_columns    <- sapply(x, class) == 'numeric'
+  x[numeric_columns] <-  round(x[numeric_columns], digits)
+  x
+}
+
+temp5       <- round_df(temp2, 2)
+```
+
+###K-Means Aggregate Metrics with Mean
+
+Along with the primary dataset metrics, each cluster size( clusterSize ) and percentage of cluster size( clusterPCT ) in given population are calculated and tabulated.
+
+```{r cars4, echo=FALSE,message=FALSE, warning=FALSE}
+
+grid.table(temp4)
+
+```
+
+###Hierarchical Cluster Aggregate Metrics with Mean
+
+```{r cars5, echo=FALSE,message=FALSE, warning=FALSE}
+
+grid.table(temp5)
+
+```
+
+###Conclusion
+
+From above metrics, none of the clusters are matching, Hence the outcomes of K-means cluster and Hierarchial clustering are not same.
+
+## 1.6 Cluster Target and Offers
+
+From the metrics of K-Means Aggregate Metrics with Mean, The below are 
+the target offers to the customers. 
+
+### Cluster 2
+
+    Business Proportion : 62.64% of customers fall into this cluster. There is potential business growth 
+                          opportunity, if the passengers are turned into regular travellers. 
+    Potential Offers    : 
+                          1. If frequent flyer credit card is used then the reward points per travel 
+                             percentage can increased. 
+                          2. If the number of travel checkins are more than 5 in an year, Then extra
+                             bonus points can be awarded to the customer. 
+                          
+### Cluster 3
+
+    Business Proportion : This cluster is second largest with 33.31% of customers. 
+    Potential Offers    : 
+                          1. If Bonus miles are used with the proportion of 80:20 then the customers can
+                             be awarded with 50% off  with frequent flyer credit card.
+                          
+## 2. Wine data from the UCI machine learning repository
+
+Step 1: Download the Wine data from the UCI machine learning repository
+(http://archive.ics.uci.edu/ml/datasets/Wine)
+
+Step 2: Do a Principal Components Analysis (PCA) on the data. Please include (copy-paste) the
+relevant software outputs in your submission while answering the following questions.
+
+2.1 Enumerate the insights you gathered during your PCA exercise. (Please do not clutter your
+report with too MANY insignificant insights as it will dilute the value of your other significant
+findings)        
+
+2.2 What are the social and business values of those insights, and how the value of those insights
+can be harnessed?
+
+Step 3: Do a cluster analysis using (i) all chemical measurements (ii) using two most significant PC
+scores. Please include (copy-paste) the relevant software outputs in your submission while answering
+the following questions.
+
+2.3 Any more insights you come across during the clustering exercise?                 
+
+2.4 Are there clearly separable clusters of wines? How many clusters did you go with? How the
+clusters obtained in part (i) are different from or similar to clusters obtained in part (ii),
+qualitatively?                 
+
+2.5 Could you suggest a subset of the chemical measurements that can separate wines more
+distinctly? How did you go about choosing that subset? How do the rest of the measurements
+that were not included while clustering, vary across those clusters?
+
+
+
+## 2.1 PCA Insights
+
+### R Code Depicting PCA Process
+```{r cars999, message=FALSE, warning=FALSE}
+setwd('J:\\ISB Business Analytics\\Data Mining\\Data Mining Assignment 1\\WIne DataSet')
+## Principal Component Analysis
+
+input    <- read.csv("WineData.csv",header=TRUE)
+
+mydata   <- input[1:178,2:14]
+
+# Pricipal Components Analysis
+# entering raw data and extracting PCs 
+# from the correlation matrix 
+wine.pca <- princomp(mydata, cor=TRUE)
+
+```
+
+### Barplot Illustrating different pricipal components scores
+
+```{r pressure99, echo=FALSE}
+# Visualize
+barplot(wine.pca$scores[,1:13],xlab="Principal Component",ylab="Scores") #bar plot
+```
+
+### Variance Accounted for Pricipal Components
+```{r cars998, message=FALSE, warning=FALSE}
+summary(wine.pca) # print variance accounted for
+
+```
+
+### Insights 
+
+  As per the barplot above the principal components 1,2,3,4 and 5 are highly negatively correlated. 
+  
+  As per the summary statistics, the cumulative proportion of variance till principal componet is 80%.So 5 
+  principal components can be considered for the analysis. 
+  
+  As per the standrad deviation metrics above the principal componets 1 through 5 are having above and equal to 1.
+  It indicate the better predictors. 
+  
+## 2.2 Social and Business Value Insights 
+
+  The social and business insights of each principal component can drwan with metrics of loading with help of 
+  correlation effect of each component.
+  
+```{r cars997, message=FALSE, warning=FALSE}
+loadings(wine.pca) #  loadings 
+```
+
+### Food additives rich with advantages
+    -> The first principal component is highly negative correlated with Flavanoids, Total_Phenols.
+    
+    -> The third principal component is positively correlated with Ash, Ash Alcalinity which are good for health.
+    
+### Health Harzardous composition of chemicals
+    -> The principal component 2 is highly negative correlated with alcohol, color intensity and etc.
+    -> The principal component 4 is highly positively correlated with alchocal whis is harzardous to health.
+
+
+## 2.3 Clustering Insights on Wine Dataset
+
+
+### R Code for all measurements using k-means clustering
+
+```{r cars899, message=FALSE, warning=FALSE}
+setwd('J:\\ISB Business Analytics\\Data Mining\\Data Mining Assignment 1\\WIne DataSet')
+inputk1  <- read.csv("WineData.csv",header=TRUE)
+winek    <- inputk1[1:178,2:14]
+wineks   <- scale(winek)
+wine.km  <- kmeans(wineks, 3)
+
+```
+
+### Size of clusters
+
+```{r cars898, message=FALSE, warning=FALSE}
+#Size of clusters
+wine.km$size
+
+```
+
+### Metrics of clusters
+
+```{r cars897, message=FALSE, warning=FALSE}
+#Size of clusters
+wine.km$centers
+#aggregate(inputk1[-1], by=list(cluster=wine.km$cluster), mean)
+
+```
+
+###Insights
+
+From Below plot the insights are as below. 
+
+--> The Cluster representing Green colour, the composition of chemicals Alcohol,OD280_OD315 , Proline and 
+    Total_Phenols and Flavanoids is more compared to other chemical proportions.    
+    
+    These metrics indicate that the composition of checmicals is harzardous to health. 
+
+--> The Cluster representing black colour, the composition of chemicals Flavanoids, Hue, OD280_OD315 and 
+    Proanthocyanins is less compared to other chemical proportions.
+
+--> The Cluster representing red colour, the composition of chemicals Alcohol, Malic_Acid, Magnesium and 
+    Color_Intensity is less compared to other chemical proportions.
+    
+    The metrics indicate that the compisition of checmicals is good for health.
+
+
+```{r asdf99, echo=FALSE,message=FALSE, warning=FALSE}
+# Customized color for groups
+parcoord(wineks, wine.km$cluster)
+```
+
+
+## 2.4 Seperabale Clusters or not and other metrics
+
+### Seperabale Clusters
+   As per the below plot the clusters are clearly seperable as there is no interminging of the clusters.
+
+```{r asdf98, echo=FALSE,message=FALSE, warning=FALSE}
+# Customized color for groups
+plotcluster(wineks, wine.km$cluster)
+```
+
+### Number of Clusters
+    The optimum number of clusters are 3 from above metrics. The optimum number of clusters are decided based on 
+    NBClust function results. 
+    
+## 2.5 Chemical Measurements and Conclusion
+
+### Subset of chemicals
+    
+    From above statistics  the Seven chemical compositions Alchohol, Magnesium, Flavanoids, Color_Intensity, Hue,
+    OD280_OD315 and Proline will seperate the wines more distinctly.
+
+### Decision Methodology
+
+    Based on the metrics of PCA and K-means, Identified the chemicals which are affecting the clusters to the 
+    extreme either low or high. 
+    
+### Otherthan Sbuset of chemicals
+
+    The other chemicals which are not part of subset of chemicals are consistent across the clusters in terms of
+    chemical composition.
+    
+    
+
+## 3 References
+
+1. Journal of Statistical Software 
+
+https://www.jstatsoft.org/index
+
+2.	Dendogarms
+https://cran.r-project.org/web/packages/dendextend/vignettes/introduction.html
+
+https://rpubs.com/gaston/dendrograms
+
+http://www.sthda.com/english/wiki/static-and-interactive-heatmap-in-r-unsupervised-machine-learning#at_pco=smlwn-1.0&at_si=577bd1ceccc50574&at_ab=per-2&at_pos=0&at_tot=1
+
+http://www.sthda.com/english/wiki/cluster-analysis-in-r-unsupervised-machine-learning#at_pco=smlwn-1.0&at_si=577bd0960cfd2397&at_ab=per-2&at_pos=0&at_tot=1
+
+http://www.sthda.com/english/rpkgs/factoextra/fviz_dend.html
+
+
+3.	R Mark Down Cheat sheet 
+http://www.rstudio.com/wp-content/uploads/2016/03/rmarkdown-cheatsheet-2.0.pdf
+
+http://www.jacolienvanrij.com/Tutorials/tutorialMarkdown.html
+
+4.	K-Means 
+https://en.wikipedia.org/wiki/K-means_clustering
+
+Wine DataSet:
+https://datayo.wordpress.com/2015/05/06/using-k-means-to-cluster-wine-dataset/
+
+R-in Action: 
+http://www.r-bloggers.com/k-means-clustering-from-r-in-action/
+
+https://cran.r-project.org/web/views/Cluster.html
+
+
+R- Useful
+https://en.wikibooks.org/wiki/Data_Mining_Algorithms_In_R/Clustering/K-Means
+
+5.	Data Mining Book 
+https://mineracaodedados.files.wordpress.com/2012/07/data-mining-in-excel.pdf
+5.	   Science direct 
+http://www.sciencedirect.com/science/article/pii/S0020025507002319
+
+6.	PCA 
+https://cran.r-project.org/web/packages/HSAUR/vignettes/Ch_principal_components_analysis.pdf
+
+http://www.r-bloggers.com/computing-and-visualizing-pca-in-r/
+
+https://rstudio-pubs-static.s3.amazonaws.com/33876_1d7794d9a86647ca90c4f182df93f0e8.html
+
+http://www.analyticsvidhya.com/blog/2016/03/practical-guide-principal-component-analysis-python/
+
+PCA R:- 
+https://stat.ethz.ch/~mmarloes/teaching/fall08/Rscript-PCA.R
+
+imp: 
+https://www.ime.usp.br/~pavan/pdf/MAE0330-PCA-R-2013
+
+
+7.	Nice Plots 
+http://www.r-bloggers.com/using-r-to-replicate-common-spss-multiple-regression-output/
+
+8.	NBClust Paper
+
+https://www.google.co.in/url?sa=t&rct=j&q=&esrc=s&source=web&cd=10&cad=rja&uact=8&ved=0ahUKEwj-7N6HleLNAhWDt48KHcuZBCkQFghYMAk&url=https%3A%2F%2Fwww.jstatsoft.org%2Farticle%2Fview%2Fv061i06%2Fv61i06.pdf&usg=AFQjCNHAkhpWbWNxKheZ0Z_itE-KdjHfvw&bvm=bv.126130881,d.c2I
+
+9.	For PDF
+http://miktex.org/download
+
